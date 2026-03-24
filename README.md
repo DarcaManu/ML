@@ -5,7 +5,7 @@ Confronto tra modelli, cross-validation e tuning con GridSearchCV.
 
 ---
 
-## Struttura del progetto
+## Struttura del progetto, Apri dal file per vedere meglio
 
 model_selection/
 ├── main.py
