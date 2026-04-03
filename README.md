@@ -192,4 +192,4 @@ Da notebook:
 ## Dipendenze
 
 manualmente:
-    pip install scikit-learn xgboost pandas numpy jupyter
+    pip install requirements.txt

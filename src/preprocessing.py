@@ -33,7 +33,8 @@ class Preprocessing:
 
     def feature_engineering(self):
         """Crea feature derivate e clustering geografico — logica portata dal notebook"""
-        if self.df is None:
+
+        if self.df is None:# per debugging
             raise ValueError("Chiama prima load_data!")
 
         df = self.df
@@ -42,11 +43,12 @@ class Preprocessing:
         # permettersi una casa che costa 10k
         df['income_squared'] = df['median_income'] ** 2
 
-        # interazione posizione + reddito (Lezione 5: Interaction Features)
+        # interazione posizione + reddito 
         df['income_x_lat'] = df['median_income'] * df['latitude']
         df['income_x_long'] = df['median_income'] * df['longitude']
 
         #ora invece faremo delle feature delle variabili più deboli per migliorare la performance
+
         df['rooms_per_hh'] = df['total_rooms'] / df['households']  # numero di stanze per famiglia
         df['bedrooms_per_room'] = df['total_bedrooms'] / df['total_rooms']  # percentuale di stanze da letto rispetto al totale delle stanze
         df['pop_per_hh'] = df['population'] / df['households']  # numero di persone per famiglia
@@ -90,12 +92,12 @@ class Preprocessing:
         return self
 
     def get_data(self):
-        """Getter: ritorna tuple pronta per il training"""
+        #Getter: ritorna tuple pronta per il training
         # .values converte Pandas Series → NumPy array (richiesto da sklearn)
         return self.X_train_proc, self.y_train.values, self.X_test_proc, self.y_test.values
 
     def get_full_data(self):
-        """Restituisce dati completi preprocessati per tuning/CV"""
+        #Restituisce dati completi preprocessati per tuning/CV
         X_full = np.vstack([self.X_train_proc, self.X_test_proc])
         y_full = np.concatenate([self.y_train.values, self.y_test.values])
         return X_full, y_full
