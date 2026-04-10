@@ -1,20 +1,21 @@
-# Model Selection Project
+# Model Selection - California Housing
 
-Progetto di regressione sul dataset California Housing.
-Confronto tra modelli, cross-validation e tuning con GridSearchCV.
+Progetto di machine learning sul dataset California Housing.
+L'obiettivo è confrontare più modelli di regressione, valutarli con cross-validation e fare tuning su XGBoost.
 
 ---
 
-## Struttura del progetto, Apri dal file per vedere meglio
+## Com'è organizzato il progetto
 
-model_selection/
+```
+ML/
 ├── main.py
 ├── README.md
 ├── requirements.txt
 ├── Dataset/
 │   └── raw/
 │       └── housing.csv
-├── models/
+├── models/          <- i modelli addestrati vengono salvati qui come .pkl
 ├── notebooks/
 │   └── Model_selection.ipynb
 └── src/
@@ -22,174 +23,59 @@ model_selection/
     ├── config.py
     ├── preprocessing.py
     ├── models.py
-    └── evaluate.py
+    └── compareModels.py
+```
 
 ---
 
-## src/config.py
+## Cosa fa ogni file
 
-Variabili globali del progetto. Modifica qui i parametri senza toccare il resto del codice.
+**`src/config.py`**
+Contiene tutti i parametri globali (path del dataset, parametri dei modelli, numero di fold, ecc.).
+Ho messo tutto qui così se voglio cambiare qualcosa non devo toccare il resto del codice.
 
-| Variabile      | Tipo  | Descrizione                                      |
-|----------------|-------|--------------------------------------------------|
-| DATA_PATH      | str   | Percorso relativo al dataset CSV                 |
-| NUM_FEATURES   | list  | Lista delle feature numeriche                    |
-| CAT_FEATURES   | list  | Lista delle feature categoriche                  |
-| TARGET         | str   | Nome della colonna target                        |
-| RANDOM_STATE   | int   | Seed per riproducibilita'                        |
-| TEST_SIZE      | float | Percentuale dati di test (default 0.2)           |
-| CV_FOLDS       | int   | Numero di fold per cross-validation (default 5)  |
+**`src/preprocessing.py`**
+Si occupa di caricare i dati, fare feature engineering e preparare i set di train/test.
+Ho creato alcune feature derivate come `rooms_per_hh`, `bedrooms_per_room` e `pop_per_hh` perché le variabili originali da sole non catturavano bene la struttura dei dati.
+Ho aggiunto anche un clustering geografico con KMeans su latitudine, longitudine e reddito — l'idea è che la zona geografica influisce molto sul prezzo e il modello da solo fatica a coglierlo.
+La classe è strutturata con method chaining quindi in `main.py` si può scrivere tutto in una riga.
 
----
+**`src/models.py`**
+Contiene una classe astratta `ModelBase` con i metodi comuni (train, predict, evaluate, cross_validate, save, load) e due classi figlie: `RFModel` per RandomForest e `XGBModel` per XGBoost.
+Ho usato l'ereditarietà perché i due modelli hanno la stessa interfaccia e così evito di ripetere codice.
 
-## src/preprocessing.py
+**`src/compareModels.py`**
+Funzioni per confrontare più modelli sia con split classico 80/20 che con cross-validation a 5 fold.
+C'è anche `TuningXGBoost` che usa GridSearchCV e `BayesianOptimizationXGBoost` che usa scikit-optimize — la bayesiana è più efficiente perché non prova tutte le combinazioni ma guida la ricerca in base ai risultati precedenti.
 
-Preparazione e trasformazione dei dati grezzi.
-
-### preparazione_dati(df)
-
-Esegue il preprocessing completo del DataFrame e restituisce i dati pronti per il training.
-
-Parametri:
-- df — DataFrame pandas con i dati grezzi
-
-Restituisce:
-- X_train     — dati di training
-- X_test      — dati di test
-- y_train     — target di training
-- y_test      — target di test
-- preprocessor — oggetto ColumnTransformer gia' fittato
-
-Operazioni interne:
-- Crea feature engineered: rooms_per_household, bedrooms_per_room, population_per_household
-- Imputa i valori NaN con la mediana sulle feature numeriche
-- Scala le feature numeriche con StandardScaler
-- Applica OneHotEncoding sulla feature categorica ocean_proximity
-- Splitta i dati in train/test secondo TEST_SIZE e RANDOM_STATE
-
-Uso:
-    from src.preprocessing import preparazione_dati
-    X_train, X_test, y_train, y_test, preprocessor = preparazione_dati(df)
+**`main.py`**
+Esegue tutto il flusso: preprocessing → cross-validation → train → evaluate → salvataggio modello.
 
 ---
 
-## src/models.py
+## Come eseguirlo
 
-Definizione dei modelli e dei parametri per la GridSearch.
+Installa le dipendenze:
+```bash
+pip install -r requirements.txt
+```
 
-### REGRESSORS
+Avvia da terminale:
+```bash
+python3 main.py
+```
 
-Dizionario con tutti i modelli da confrontare.
-
-| Chiave            | Modello                | Parametri principali              |
-|-------------------|------------------------|-----------------------------------|
-| LinearRegression  | LinearRegression       | nessuno                           |
-| DecisionTree      | DecisionTreeRegressor  | max_depth=5                       |
-| RandomForest      | RandomForestRegressor  | n_estimators=100                  |
-| XGBoost           | XGBRegressor           | n_estimators=100, learning_rate=0.1 |
-
-Uso:
-    from src.models import REGRESSORS
-
-    for nome, config in REGRESSORS.items():
-        model = config["model"](**config["params"])
-
-Per aggiungere un modello:
-    "Ridge": {
-        "model": Ridge,
-        "params": {"alpha": 1.0}
-    }
+Oppure apri il notebook:
+```bash
+jupyter notebook
+# poi apri notebooks/Model_selection.ipynb
+```
 
 ---
 
-### PARAM_GRID_XGB
+## Scelte che ho fatto e perché
 
-Griglia di parametri usata da tune_xgboost() per la GridSearchCV su XGBoost.
-
-| Parametro        | Valori            |
-|------------------|-------------------|
-| n_estimators     | [200, 300, 400]   |
-| learning_rate    | [0.08, 0.1, 0.12] |
-| max_depth        | [5, 6, 7]         |
-| subsample        | [0.85, 0.9]       |
-| colsample_bytree | [0.85, 0.9]       |
-| reg_alpha        | [0, 0.1]          |
-| reg_lambda       | [1, 1.5]          |
-
----
-
-## src/evaluate.py
-
-Funzioni per valutare e confrontare i modelli.
-
-### compare_models_split(regressors, X_train, X_test, y_train, y_test)
-
-Confronta tutti i modelli del dizionario usando lo split 80/20.
-Stampa l'RMSE di ciascuno e il migliore.
-
-Parametri:
-- regressors            — dizionario modelli (usa REGRESSORS da models.py)
-- X_train, X_test       — dati di training e test
-- y_train, y_test       — target di training e test
-
-Restituisce:
-- results — dizionario {nome_modello: rmse}
-
-Uso:
-    from src.evaluate import compare_models_split
-    results = compare_models_split(REGRESSORS, X_train, X_test, y_train, y_test)
-
----
-
-### compare_models_crossval(regressors, X_full, y_full)
-
-Confronta tutti i modelli usando cross-validation a 5 fold.
-Piu' affidabile dello split singolo.
-
-Parametri:
-- regressors — dizionario modelli (usa REGRESSORS da models.py)
-- X_full     — dati completi preprocessati
-- y_full     — target completo
-
-Restituisce:
-- results — dizionario {nome_modello: rmse_medio}
-
-Uso:
-    from src.evaluate import compare_models_crossval
-    results = compare_models_crossval(REGRESSORS, X_full, y_full)
-
----
-
-### tune_xgboost(param_grid, X_full, y_full)
-
-Esegue GridSearchCV su XGBoost per trovare la combinazione ottimale di iperparametri.
-
-Parametri:
-- param_grid — dizionario parametri (usa PARAM_GRID_XGB da models.py)
-- X_full     — dati completi preprocessati
-- y_full     — target completo
-
-Restituisce:
-- best_estimator_ — modello XGBoost gia' fittato con i parametri migliori
-
-Uso:
-    from src.evaluate import tune_xgboost
-    best_model = tune_xgboost(PARAM_GRID_XGB, X_full, y_full)
-
----
-
-## Esecuzione
-
-Da terminale:
-    python3 main.py
-
-Da notebook:
-    jupyter notebook
-    Apri notebooks/Model_selection.ipynb ed esegui le celle in ordine.
-
----
-
-## Dipendenze
-
-manualmente:
-    pip install requirements.txt
+- **Ho rimosso i prezzi >= 500.000$** dal dataset perché sono un valore artificiale di cap, non case reali
+- **Ho usato `fit_transform` solo sul train e `transform` sul test** per evitare data leakage (se standardizzo anche con i dati di test, il modello "vede" informazioni che non dovrebbe avere)
+- **Cross-validation invece del singolo split** perché con un solo split il risultato dipende da come casca la divisione, con 5 fold è più stabile
+- **XGBoost come modello principale per il tuning** perché nei confronti iniziali era quello con RMSE più basso
