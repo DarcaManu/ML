@@ -68,7 +68,7 @@ def TuningXGBoost(param_grid, X_full, y_full):
     print(f"Best RMSE:   {-gs.best_score_:.4f}")
     return gs.best_estimator_
 
-def BaesyanOptimizationXGBoost(X_full, y_full):
+def BayesianOptimizationXGBoost(X_full, y_full):
     from skopt import BayesSearchCV
     from skopt.space import Real, Integer
 
